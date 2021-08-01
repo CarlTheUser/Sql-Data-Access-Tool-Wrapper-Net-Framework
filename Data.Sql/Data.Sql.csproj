@@ -50,6 +50,7 @@
     <Compile Include="Mapping\FieldMapping.cs" />
     <Compile Include="Mapping\IDataMapper.cs" />
     <Compile Include="Mapping\ReflectionDataMapper.cs" />
+    <Compile Include="MsSqlCaller.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Provider\SqlServerProvider.cs" />
     <Compile Include="Querying\QueryFilter.cs" />
