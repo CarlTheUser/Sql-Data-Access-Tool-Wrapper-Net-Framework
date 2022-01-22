@@ -19,9 +19,7 @@ namespace Data.Sql.Mapping
 
                 //PropertyMappingsCache = new Dictionary<string, PropertyMap>();
 
-                StringComparer comparer = StringComparer.OrdinalIgnoreCase;
-
-                PropertyMappingsCache = new Dictionary<string, PropertyMap>(comparer);
+                PropertyMappingsCache = new Dictionary<string, PropertyMap>(StringComparer.OrdinalIgnoreCase);
 
                 Type type = typeof(T);
 

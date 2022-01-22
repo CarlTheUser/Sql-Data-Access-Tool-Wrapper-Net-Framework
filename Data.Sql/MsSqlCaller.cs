@@ -13,7 +13,7 @@ namespace Data.Sql
 
         public void BulkCopy<T>(IEnumerable<T> items, string destination) where T : class, new()
         {
-            using (SqlConnection connection = _sqlProvider.CreateConnection() as SqlConnection)
+            using (SqlConnection connection = _provider.CreateConnection() as SqlConnection)
             {
                 SqlBulkCopy bulkCopy = new SqlBulkCopy(
                     connection,
@@ -55,7 +55,7 @@ namespace Data.Sql
 
         public async void BulkCopyAsync<T>(IEnumerable<T> items, string destination) where T : class, new()
         {
-            using (SqlConnection connection = _sqlProvider.CreateConnection() as SqlConnection)
+            using (SqlConnection connection = _provider.CreateConnection() as SqlConnection)
             {
                 SqlBulkCopy bulkCopy = new SqlBulkCopy(
                     connection,

@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Data.Sql
 {
@@ -62,6 +64,47 @@ namespace Data.Sql
             }
         }
 
+        public async Task<int> ExecuteNonQueryAsync(DbCommand command, CancellationToken token)
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            command.Connection = connection;
+
+            command.Transaction = _dbTransaction;
+
+            int affectedRows = await command.ExecuteNonQueryAsync(token);
+
+            command.Transaction = null;
+
+            command.Connection = null;
+
+            return affectedRows;
+        }
+
+        public async Task<int> ExecuteNonQueryAsync(string query, CancellationToken token)
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            using (DbCommand command = connection.CreateCommand())
+            {
+                command.Transaction = _dbTransaction;
+
+                command.CommandText = query;
+
+                int affectedRows = await command.ExecuteNonQueryAsync(token);
+
+                command.Transaction = null;
+
+                command.Connection = null;
+
+                return affectedRows;
+            }  
+        }
+
         public object ExecuteScalar(DbCommand command)
         {
             DisposeCheck();
@@ -103,6 +146,47 @@ namespace Data.Sql
             }
         }
 
+        public async Task<object> ExecuteScalarAsync(DbCommand command, CancellationToken token)
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            command.Connection = connection;
+
+            command.Transaction = _dbTransaction;
+
+            object returnValue = await command.ExecuteScalarAsync(token);
+
+            command.Transaction = null;
+
+            command.Connection = null;
+
+            return returnValue;
+        }
+
+        public async Task<object> ExecuteScalarAsync(string query, CancellationToken token)
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            using (DbCommand command = connection.CreateCommand())
+            {
+                command.Transaction = _dbTransaction;
+
+                command.CommandText = query;
+
+                object returnValue = await command.ExecuteScalarAsync(token);
+
+                command.Transaction = null;
+
+                command.Connection = null;
+
+                return returnValue;
+            }
+        }
+
         public IEnumerable<T> Get<T>(Func<IDataReader, List<T>> mappingMethod, string query)
         {
             DisposeCheck();
@@ -119,7 +203,7 @@ namespace Data.Sql
 
             List<T> temp;
 
-            IDataReader reader = null;
+            IDataReader reader = default;
 
             try
             {
@@ -286,6 +370,119 @@ namespace Data.Sql
             return temp;
         }
 
+        public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, DbCommand command, CancellationToken token) where T : class, new()
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            List<T> temp = new List<T>();
+
+            command.Connection = connection;
+
+            command.Transaction = _dbTransaction;
+
+            DbDataReader reader = null;
+
+            try
+            {
+                reader = await command.ExecuteReaderAsync(token);
+
+                while (await reader.ReadAsync(token)) temp.Add(dataMapper.CreateMappedInstance(reader));
+
+                return temp;
+            }
+            finally
+            {
+                reader?.Dispose();
+
+                command.Connection = null;
+
+                command.Transaction = null;
+            }
+        }
+
+        public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, string query, CancellationToken token) where T : class, new()
+        {
+            DisposeCheck();
+
+            List<T> temp = new List<T>();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            DbCommand command = connection.CreateCommand();
+
+            command.CommandText = query;
+
+            command.Transaction = _dbTransaction;
+
+            DbDataReader reader = null;
+
+            try
+            {
+                reader = await command.ExecuteReaderAsync(token);
+
+                while (await reader.ReadAsync(token)) temp.Add(dataMapper.CreateMappedInstance(reader));
+
+                return temp;
+            }
+            finally
+            {
+                reader?.Dispose();
+
+                command.Connection = null;
+
+                command.Transaction = null;
+
+                command.Dispose();
+            }
+        }
+
+        public async Task<IEnumerable<T>> GetAsync<T>(DbCommand command, CancellationToken token) where T : class, new()
+        {
+            DisposeCheck();
+
+            return await GetAsync(new ReflectionDataMapper<T>(), command, token);
+        }
+
+        public async Task<IEnumerable<T>> GetAsync<T>(string query, CancellationToken token) where T : class, new()
+        {
+            DisposeCheck();
+
+            List<T> temp = new List<T>();
+
+            IDataMapper<T> mapper = new ReflectionDataMapper<T>();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            DbCommand command = connection.CreateCommand();
+
+            command.CommandText = query;
+
+            command.Transaction = _dbTransaction;
+
+            DbDataReader reader = null;
+
+            try
+            {
+                reader = await command.ExecuteReaderAsync(token);
+
+                while (await reader.ReadAsync(token)) temp.Add(mapper.CreateMappedInstance(reader));
+            }
+            finally
+            {
+                reader?.Dispose();
+
+                command.Connection = null;
+
+                command.Transaction = null;
+
+                command.Dispose();
+            }
+
+            return temp;
+        }
+
         public void Iterate<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, DbCommand command) where T : class, new()
         {
             DisposeCheck();
@@ -335,6 +532,68 @@ namespace Data.Sql
                 reader = command.ExecuteReader();
 
                 while (reader.Read()) iteratorAction.Invoke(dataMapper.CreateMappedInstance(reader));
+            }
+            finally
+            {
+                reader?.Dispose();
+
+                command.Connection = null;
+
+                command.Transaction = null;
+
+                command.Dispose();
+            }
+        }
+
+        public async Task IterateAsync<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, DbCommand command, CancellationToken token) where T : class, new()
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            command.Connection = connection;
+
+            command.Transaction = _dbTransaction;
+
+            DbDataReader reader = null;
+
+            try
+            {
+                reader = await command.ExecuteReaderAsync(token);
+
+                while (await reader.ReadAsync(token)) iteratorAction.Invoke(dataMapper.CreateMappedInstance(reader));
+            }
+            finally
+            {
+                reader?.Dispose();
+
+                command.Connection = null;
+
+                command.Transaction = null;
+            }
+        }
+
+        public async Task IterateAsync<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, string query, CancellationToken token) where T : class, new()
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            DbCommand command = connection.CreateCommand();
+
+            command.CommandText = query;
+
+            command.Connection = connection;
+
+            command.Transaction = _dbTransaction;
+
+            DbDataReader reader = null;
+
+            try
+            {
+                reader = await command.ExecuteReaderAsync(token);
+
+                while (await reader.ReadAsync(token)) iteratorAction.Invoke(dataMapper.CreateMappedInstance(reader));
             }
             finally
             {
