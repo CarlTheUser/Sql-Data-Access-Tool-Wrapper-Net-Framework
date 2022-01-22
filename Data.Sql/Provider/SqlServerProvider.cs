@@ -11,6 +11,8 @@ namespace Data.Sql.Provider
     {
         public string ConnectionString { get; set; } = string.Empty;
 
+        public string ProviderType => "System.Data.SqlClient";
+
         public SqlServerProvider()
         {
 
